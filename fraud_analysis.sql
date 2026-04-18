@@ -1,21 +1,24 @@
+-- total number of transactions
 SELECT COUNT(*) AS total_transactions
 FROM transactions;
 
-SELECT COUNT(*) FROM transactions;
-
+-- number of fraud transactions
 SELECT COUNT(*) AS fraud_transactions
 FROM transactions
 WHERE Class = 1;
 
+-- overall fraud percentage
 SELECT 
     COUNT(*) AS total,
     SUM(Class) AS fraud,
     (SUM(Class) * 100.0) / COUNT(*) AS fraud_percentage
 FROM transactions;
-/*Fraud transactions are extremely rare (~0.17%), 
-indicating a highly imbalanced dataset 
-where detecting fraud is challenging.*/
 
+-- observation: fraud transactions are very rare (~0.17%)
+
+-------------------------------------------------------
+
+-- comparing fraud vs non-fraud transactions
 SELECT 
     Class,
     COUNT(*) AS total_transactions,
@@ -24,33 +27,37 @@ SELECT
     MIN(Amount) AS min_amount
 FROM transactions
 GROUP BY Class;
-/*Fraudulent transactions tend to have a higher 
-average transaction value (~122) compared to normal 
-transactions (~88), indicating that fraudsters 
-often attempt higher-value transactions.*/
 
+-- observation: fraud transactions tend to have higher average amount
+
+-------------------------------------------------------
+
+-- finding fraud transactions above average amount
 SELECT *
 FROM transactions
-WHERE Amount > (
-    SELECT AVG(Amount) FROM transactions
-)
+WHERE Amount > (SELECT AVG(Amount) FROM transactions)
 AND Class = 1;
 
+-------------------------------------------------------
 
---fast fraud--
+-- checking time gap between transactions (possible fast fraud)
 SELECT *
 FROM (
     SELECT 
         Time,
         Amount,
         Class,
-        Time - LAG(Time) OVER (ORDER BY Time, Amount) AS time_diff
+        Time - LAG(Time) OVER (ORDER BY Time) AS time_diff
     FROM transactions
 ) t
 WHERE Class = 1
 AND time_diff < 10;
 
+-- observation: fraud often occurs in short time intervals
 
+-------------------------------------------------------
+
+-- creating a simple fraud scoring system
 SELECT *,
     CASE WHEN Amount > 100 THEN 2 ELSE 0 END +
     CASE WHEN time_diff < 10 AND time_diff IS NOT NULL THEN 3 ELSE 0 END
@@ -60,10 +67,11 @@ FROM (
         Time,
         Amount,
         Class,
-        LAG(Time) OVER (ORDER BY Time, Amount) AS prev_time,
-        Time - LAG(Time) OVER (ORDER BY Time, Amount) AS time_diff
+        Time - LAG(Time) OVER (ORDER BY Time) AS time_diff
     FROM transactions
 ) t;
+
+-- higher score = higher risk
 
 
 
